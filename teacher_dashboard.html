@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Dashboard — Backpack Challenge</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0f1a;
+  --surface: #131929;
+  --surface2: #1a2236;
+  --border: rgba(255,255,255,0.07);
+  --coral: #ff5f40;
+  --amber: #f5a623;
+  --mint: #2ec4b6;
+  --sky: #74c0fc;
+  --text: #e8edf5;
+  --muted: #6b7a99;
+  --shadow: 0 4px 32px rgba(0,0,0,0.4);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; overflow-x: hidden;
+}
+
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(116,192,252,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(116,192,252,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none; z-index: 0;
+}
+
+.page { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* Header */
+header {
+  padding: 18px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px;
+  background: rgba(11,15,26,0.85);
+  backdrop-filter: blur(12px);
+  position: sticky; top: 0; z-index: 100;
+}
+
+.logo { font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 800; }
+.logo span { color: var(--mint); }
+.header-sub { font-size: 0.8rem; color: var(--muted); margin-left: 4px; }
+
+.live-badge {
+  margin-left: auto;
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  background: rgba(46,196,182,0.1); color: var(--mint);
+  border: 1px solid rgba(46,196,182,0.22);
+  padding: 5px 12px; border-radius: 100px;
+  display: flex; align-items: center; gap: 7px;
+}
+.live-dot { width: 7px; height: 7px; background: var(--mint); border-radius: 50%; animation: pulse 1.8s infinite; }
+
+.clear-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 0.78rem;
+  background: rgba(255,95,64,0.1); color: var(--coral);
+  border: 1px solid rgba(255,95,64,0.2);
+  padding: 6px 14px; border-radius: 8px; cursor: pointer; transition: all 0.15s;
+  margin-left: 8px;
+}
+.clear-btn:hover { background: rgba(255,95,64,0.2); }
+
+/* Stats */
+.stats-bar {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 1px; background: var(--border); border-bottom: 1px solid var(--border);
+}
+.stat {
+  background: var(--surface); padding: 18px 24px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.stat-val { font-family: 'Syne', sans-serif; font-size: 1.9rem; font-weight: 800; line-height: 1; transition: color 0.3s; }
+.stat-val.mint  { color: var(--mint); }
+.stat-val.amber { color: var(--amber); }
+.stat-val.coral { color: var(--coral); }
+.stat-val.sky   { color: var(--sky); }
+.stat-label { font-size: 0.75rem; color: var(--muted); }
+
+/* Main layout */
+.main { display: grid; grid-template-columns: 1fr 320px; flex: 1; }
+@media (max-width: 880px) { .main { grid-template-columns: 1fr; } .stats-bar { grid-template-columns: repeat(2,1fr); } }
+
+/* Submissions pane */
+.submissions-pane { padding: 24px 20px; overflow-y: auto; max-height: calc(100vh - 118px); }
+
+.pane-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.pane-title { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; }
+
+.filters { display: flex; gap: 7px; }
+.filter-btn {
+  font-size: 0.75rem; padding: 5px 12px; border-radius: 100px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+}
+.filter-btn:hover, .filter-btn.active { background: rgba(116,192,252,0.1); border-color: rgba(116,192,252,0.3); color: var(--sky); }
+
+/* Empty state */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 80px 20px; text-align: center; color: var(--muted);
+  grid-column: 1/-1;
+}
+.empty-state .icon { font-size: 48px; opacity: 0.35; }
+.empty-state p { font-size: 0.88rem; line-height: 1.6; max-width: 300px; }
+.empty-state code {
+  display: inline-block; margin-top: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 6px;
+  font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--mint);
+}
+
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap: 14px; }
+
+/* Student card */
+.s-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+  cursor: pointer; transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
+  animation: cardIn 0.3s ease both;
+}
+.s-card:hover { transform: translateY(-3px); border-color: rgba(116,192,252,0.28); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+.s-card.selected { border-color: var(--sky); box-shadow: 0 0 0 2px rgba(116,192,252,0.2); }
+.s-card.new-card { animation: newPop 0.45s ease both; }
+
+.sketch-thumb {
+  width: 100%; height: 120px;
+  background: #f7f9fc; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.sketch-thumb canvas { width: 100%; height: 100%; display: block; }
+.no-sketch { color: #bbb; font-size: 0.75rem; font-family: 'DM Mono', monospace; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.no-sketch span:first-child { font-size: 26px; }
+
+.time-badge {
+  position: absolute; top: 7px; right: 7px;
+  font-family: 'DM Mono', monospace; font-size: 0.62rem;
+  background: rgba(11,15,26,0.72); color: var(--mint);
+  padding: 2px 7px; border-radius: 100px;
+}
+.new-badge-tag {
+  position: absolute; top: 7px; left: 7px;
+  background: var(--coral); color: #fff;
+  font-size: 0.6rem; font-family: 'DM Mono', monospace;
+  padding: 2px 7px; border-radius: 100px;
+  animation: pulse 1.4s infinite;
+}
+
+.s-card-body { padding: 12px 14px; }
+.s-name { font-family: 'Syne', sans-serif; font-size: 0.88rem; font-weight: 700; margin-bottom: 7px; display: flex; align-items: center; gap: 7px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.done    { background: var(--mint); }
+.status-dot.partial { background: var(--amber); animation: pulse 2s infinite; }
+.status-dot.empty   { background: var(--muted); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.chip { font-size: 0.65rem; padding: 2px 7px; border-radius: 100px; font-family: 'DM Mono', monospace; }
+.chip-padding { background: rgba(245,166,35,0.13); color: var(--amber); border: 1px solid rgba(245,166,35,0.22); }
+.chip-water   { background: rgba(46,196,182,0.1);  color: var(--mint);  border: 1px solid rgba(46,196,182,0.22); }
+.chip-pockets { background: rgba(116,192,252,0.1); color: var(--sky);   border: 1px solid rgba(116,192,252,0.22); }
+
+.budget-mini { display: flex; align-items: center; gap: 7px; }
+.budget-mini-bar { flex: 1; height: 4px; border-radius: 100px; background: rgba(255,255,255,0.07); overflow: hidden; }
+.budget-mini-fill { height: 100%; border-radius: 100px; transition: width 0.4s; }
+.budget-mini-label { font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--muted); white-space: nowrap; }
+
+/* Sidebar */
+.sidebar { border-left: 1px solid var(--border); background: var(--surface); overflow-y: auto; max-height: calc(100vh - 118px); position: sticky; top: 118px; }
+.sidebar-inner { padding: 20px; }
+.sidebar-title { font-family: 'DM Mono', monospace; font-size: 0.7rem; letter-spacing: 1.2px; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; }
+
+.detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 260px; gap: 10px; color: var(--muted); text-align: center; }
+.detail-empty .icon { font-size: 36px; opacity: 0.3; }
+.detail-empty p { font-size: 0.82rem; line-height: 1.5; }
+
+.d-name { font-family: 'Syne', sans-serif; font-size: 1.25rem; font-weight: 800; margin-bottom: 3px; }
+.d-time { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-bottom: 14px; }
+
+.d-sketch { width: 100%; aspect-ratio: 1; border-radius: 12px; background: #f7f9fc; margin-bottom: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.d-sketch canvas { width: 100%; height: 100%; }
+.d-sketch-empty { color: #bbb; font-size: 0.8rem; font-family: 'DM Mono', monospace; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+.d-section { margin-bottom: 14px; }
+.d-section-title { font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+
+.d-budget-bar { height: 7px; border-radius: 100px; background: rgba(255,255,255,0.07); overflow: hidden; margin-bottom: 5px; }
+.d-budget-fill { height: 100%; border-radius: 100px; transition: width 0.5s; }
+.d-budget-labels { display: flex; justify-content: space-between; font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--muted); }
+
+.note-area {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 0.83rem;
+  resize: vertical; min-height: 72px; outline: none; transition: border-color 0.18s;
+}
+.note-area:focus { border-color: rgba(116,192,252,0.35); }
+
+.grade-row { display: flex; gap: 6px; margin-top: 7px; }
+.grade-btn {
+  flex: 1; padding: 7px 4px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--muted); font-family: 'Syne', sans-serif; font-size: 0.75rem; font-weight: 700;
+  cursor: pointer; transition: all 0.14s;
+}
+.grade-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+.grade-btn.g-great { background: rgba(46,196,182,0.12); border-color: var(--mint); color: var(--mint); }
+.grade-btn.g-good  { background: rgba(116,192,252,0.1); border-color: var(--sky);  color: var(--sky); }
+.grade-btn.g-needs { background: rgba(255,95,64,0.1);   border-color: var(--coral); color: var(--coral); }
+
+/* Idea chart */
+.chart-bars { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+.chart-row { display: flex; align-items: center; gap: 10px; }
+.chart-label { font-size: 0.75rem; color: var(--muted); width: 86px; flex-shrink: 0; }
+.chart-bar-wrap { flex: 1; height: 10px; background: rgba(255,255,255,0.05); border-radius: 100px; overflow: hidden; }
+.chart-bar-fill { height: 100%; border-radius: 100px; transition: width 0.6s cubic-bezier(.34,1.56,.64,1); }
+.chart-count { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--muted); width: 18px; text-align: right; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 100px; }
+
+@keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+@keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+@keyframes cardIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes newPop  { 0% { opacity:0; transform:scale(0.86); } 60% { transform:scale(1.04); } 100% { opacity:1; transform:scale(1); } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="logo">📐 Design<span>Lab</span></div>
+  <div class="header-sub">Backpack Challenge — Teacher View</div>
+  <div class="live-badge" style="margin-left:auto;">
+    <div class="live-dot"></div>
+    <span id="live-label">Live</span>
+  </div>
+  <button class="clear-btn" onclick="clearAllData()">🗑 Clear All</button>
+</header>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-val mint"  id="stat-total">0</div><div class="stat-label">Submissions</div></div>
+  <div class="stat"><div class="stat-val amber" id="stat-sketched">0</div><div class="stat-label">With Sketches</div></div>
+  <div class="stat"><div class="stat-val coral" id="stat-over">0</div><div class="stat-label">Over Budget</div></div>
+  <div class="stat"><div class="stat-val sky"   id="stat-avg">$0</div><div class="stat-label">Avg Budget</div></div>
+</div>
+
+<div class="main">
+  <div class="submissions-pane">
+    <div class="pane-header">
+      <div class="pane-title">Student Submissions</div>
+      <div class="filters">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('sketched',this)">Sketched</button>
+        <button class="filter-btn" onclick="setFilter('over',this)">Over Budget</button>
+      </div>
+    </div>
+    <div class="cards-grid" id="cards-grid">
+      <div class="empty-state">
+        <div class="icon">⏳</div>
+        <p>Loading submissions…</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-title">Student Detail</div>
+      <div id="detail-pane">
+        <div class="detail-empty">
+          <div class="icon">👆</div>
+          <p>Click a student card to view their submission</p>
+        </div>
+      </div>
+
+      <div class="chart-bars">
+        <div class="sidebar-title" style="margin-bottom:0;">Idea Popularity</div>
+        <div class="chart-row">
+          <div class="chart-label">Extra Padding</div>
+          <div class="chart-bar-wrap"><div class="chart-bar-fill" id="bar-padding" style="width:0%;background:var(--amber)"></div></div>
+          <div class="chart-count" id="cnt-padding">0</div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-label">Water Shield</div>
+          <div class="chart-bar-wrap"><div class="chart-bar-fill" id="bar-water" style="width:0%;background:var(--mint)"></div></div>
+          <div class="chart-count" id="cnt-water">0</div>
+        </div>
+        <div class="chart-row">
+          <div class="chart-label">Smart Pockets</div>
+          <div class="chart-bar-wrap"><div class="chart-bar-fill" id="bar-pockets" style="width:0%;background:var(--sky)"></div></div>
+          <div class="chart-count" id="cnt-pockets">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script type="module">
+// ── Firebase Setup ──────────────────────────────────────────────
+// 🔧 SETUP: Paste the same firebaseConfig values from backpack_challenge.html here
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBBm2XHVMvzvEFna1gFiPPyT9f4fQgrdgg",
+  authDomain: "backpack-challenge-alsoqoor.firebaseapp.com",
+  projectId: "backpack-challenge-alsoqoor",
+  storageBucket: "backpack-challenge-alsoqoor.firebasestorage.app",
+  messagingSenderId: "343097749771",
+  appId: "1:343097749771:web:b66c35a802ee76b382b20e"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+async function getAllSubmissions() {
+  try {
+    const snap = await getDocs(collection(db, "submissions"));
+    return snap.docs.map(d => d.data());
+  } catch(e) { console.error("Firebase read error:", e); return []; }
+}
+
+async function clearAllData() {
+  if (!confirm('Clear ALL student submissions? This cannot be undone.')) return;
+  try {
+    const snap = await getDocs(collection(db, "submissions"));
+    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, "submissions", d.id))));
+    submissions = [];
+    knownIds = new Set();
+    selectedId = null;
+    renderGrid([]);
+    updateStats([]);
+    document.getElementById('detail-pane').innerHTML = `<div class="detail-empty"><div class="icon">👆</div><p>Click a student card to view their submission</p></div>`;
+  } catch(e) { alert('Could not clear data: ' + e.message); }
+}
+
+// ── Real-time listener with onSnapshot ──────────────────────────
+function startLiveUpdates() {
+  onSnapshot(collection(db, "submissions"), (snap) => {
+    const subs = snap.docs.map(d => d.data());
+    submissions = subs.sort((a, b) => b.submittedAt - a.submittedAt);
+    updateStats(submissions);
+    renderGrid(submissions);
+    if (selectedId) renderDetail(submissions.find(s => s.studentId === selectedId));
+    document.getElementById('live-label').textContent = 'Live · ' + new Date().toLocaleTimeString();
+    setTimeout(() => submissions.forEach(s => knownIds.add(s.studentId)), 900);
+  });
+}
+
+let submissions = [];
+let activeFilter = 'all';
+let selectedId = null;
+let knownIds = new Set();
+let notes = {};
+let grades = {};
+
+function timeAgo(ts) {
+  const d = Math.floor((Date.now()-ts)/1000);
+  if (d < 60) return d+'s ago';
+  if (d < 3600) return Math.floor(d/60)+'m ago';
+  return Math.floor(d/3600)+'h ago';
+}
+
+function budgetColor(b) {
+  if (b > 25) return 'var(--coral)';
+  if (b > 18) return 'var(--amber)';
+  return 'var(--mint)';
+}
+
+function statusClass(s) {
+  if (s.hasSketch && s.ideas.length) return 'done';
+  if (s.ideas.length) return 'partial';
+  return 'empty';
+}
+
+function chipHtml(idea) {
+  const map = { padding:['chip-padding','Padding'], water:['chip-water','Water'], pockets:['chip-pockets','Pockets'] };
+  const [cls,label] = map[idea]||['',''];
+  return `<span class="chip ${cls}">${label}</span>`;
+}
+
+function renderSketchOnCanvas(canvas, sketchData) {
+  if (!canvas || !sketchData) return;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width || 200;
+  canvas.height = rect.height || 140;
+  if (sketchData.startsWith('data:')) {
+    const img = new Image();
+    img.onload = () => {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    };
+    img.src = sketchData;
+  }
+}
+
+function updateStats(subs) {
+  document.getElementById('stat-total').textContent = subs.length;
+  document.getElementById('stat-sketched').textContent = subs.filter(s=>s.hasSketch).length;
+  document.getElementById('stat-over').textContent = subs.filter(s=>s.budget>25).length;
+  const avg = subs.length ? Math.round(subs.reduce((a,s)=>a+s.budget,0)/subs.length) : 0;
+  document.getElementById('stat-avg').textContent = '$'+avg;
+
+  const total = subs.length || 1;
+  const cnt = {padding:0, water:0, pockets:0};
+  subs.forEach(s => s.ideas.forEach(i => { if (i in cnt) cnt[i]++; }));
+  ['padding','water','pockets'].forEach(k => {
+    document.getElementById('bar-'+k).style.width = (cnt[k]/total*100)+'%';
+    document.getElementById('cnt-'+k).textContent = cnt[k];
+  });
+}
+
+function renderGrid(subs) {
+  let visible = subs;
+  if (activeFilter === 'sketched') visible = subs.filter(s=>s.hasSketch);
+  if (activeFilter === 'over') visible = subs.filter(s=>s.budget>25);
+
+  const grid = document.getElementById('cards-grid');
+
+  if (!visible.length) {
+    const msg = subs.length === 0
+      ? `<div class="empty-state"><div class="icon">🎒</div><p>No submissions yet.<br>Share the <b>Student page</b> with your class and submissions will appear here automatically.</p><code>backpack_challenge.html</code></div>`
+      : `<div class="empty-state"><div class="icon">🔍</div><p>No submissions match this filter.</p></div>`;
+    grid.innerHTML = msg;
+    return;
+  }
+
+  grid.innerHTML = visible.map(s => {
+    const isNew = !knownIds.has(s.studentId);
+    const isSelected = s.studentId === selectedId;
+    const pct = Math.min((s.budget/25)*100,100);
+    return `
+    <div class="s-card${isSelected?' selected':''}${isNew?' new-card':''}" id="card-${s.studentId}" onclick="selectStudent('${s.studentId}')">
+      <div class="sketch-thumb" id="thumb-${s.studentId}">
+        ${s.hasSketch
+          ? `<canvas id="canvas-thumb-${s.studentId}"></canvas>`
+          : `<div class="no-sketch"><span>✏️</span><span>No sketch</span></div>`}
+        <div class="time-badge">${timeAgo(s.submittedAt)}</div>
+        ${isNew ? `<div class="new-badge-tag">NEW</div>` : ''}
+      </div>
+      <div class="s-card-body">
+        <div class="s-name"><div class="status-dot ${statusClass(s)}"></div>${s.name}</div>
+        <div class="chips">${s.ideas.map(chipHtml).join('') || '<span style="font-size:0.72rem;color:var(--muted)">No ideas</span>'}</div>
+        <div class="budget-mini">
+          <div class="budget-mini-bar"><div class="budget-mini-fill" style="width:${pct}%;background:${budgetColor(s.budget)}"></div></div>
+          <div class="budget-mini-label" style="color:${budgetColor(s.budget)}">$${s.budget}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Render sketch thumbnails
+  visible.filter(s=>s.hasSketch).forEach(s => {
+    const c = document.getElementById('canvas-thumb-'+s.studentId);
+    if (c) setTimeout(() => renderSketchOnCanvas(c, s.sketchData), 80);
+  });
+}
+
+function renderDetail(s) {
+  if (!s) {
+    document.getElementById('detail-pane').innerHTML = `<div class="detail-empty"><div class="icon">👆</div><p>Click a student card to view their submission</p></div>`;
+    return;
+  }
+  const pct = Math.min((s.budget/25)*100,100);
+  const savedNote = notes[s.studentId]||'';
+  const savedGrade = grades[s.studentId]||'';
+  const ideaLabels = {padding:'Extra Padding', water:'Water Shield', pockets:'Smart Pockets'};
+
+  document.getElementById('detail-pane').innerHTML = `
+    <div class="d-name">${s.name}</div>
+    <div class="d-time">Submitted ${timeAgo(s.submittedAt)}</div>
+    <div class="d-sketch" id="d-sketch-wrap">
+      ${s.hasSketch
+        ? `<canvas id="detail-canvas"></canvas>`
+        : `<div class="d-sketch-empty"><span>✏️</span><span>No sketch submitted</span></div>`}
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">Selected Ideas</div>
+      <div class="chips">${s.ideas.map(chipHtml).join('') || '<span style="font-size:0.78rem;color:var(--muted)">None selected</span>'}</div>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">Budget</div>
+      <div class="d-budget-bar"><div class="d-budget-fill" style="width:${pct}%;background:${budgetColor(s.budget)}"></div></div>
+      <div class="d-budget-labels">
+        <span style="color:${budgetColor(s.budget)}">$${s.budget} used</span>
+        <span>$25 limit</span>
+      </div>
+      ${s.budget>25?`<div style="color:var(--coral);font-size:0.75rem;margin-top:5px;">⚠️ Over budget by $${s.budget-25}</div>`:''}
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">Teacher Notes</div>
+      <textarea class="note-area" placeholder="Add feedback…" onchange="saveNote('${s.studentId}',this.value)">${savedNote}</textarea>
+    </div>
+    <div class="d-section">
+      <div class="d-section-title">Quick Grade</div>
+      <div class="grade-row">
+        <button class="grade-btn${savedGrade==='great'?' g-great':''}" onclick="setGrade('${s.studentId}','great')">⭐ Great</button>
+        <button class="grade-btn${savedGrade==='good'?' g-good':''}" onclick="setGrade('${s.studentId}','good')">✓ Good</button>
+        <button class="grade-btn${savedGrade==='needs'?' g-needs':''}" onclick="setGrade('${s.studentId}','needs')">↩ Needs Work</button>
+      </div>
+    </div>
+  `;
+
+  if (s.hasSketch) {
+    setTimeout(() => {
+      const c = document.getElementById('detail-canvas');
+      if (c) renderSketchOnCanvas(c, s.sketchData);
+    }, 80);
+  }
+}
+
+function selectStudent(id) {
+  selectedId = id;
+  document.querySelectorAll('.s-card').forEach(c => c.classList.remove('selected'));
+  const el = document.getElementById('card-'+id);
+  if (el) el.classList.add('selected');
+  renderDetail(submissions.find(s=>s.studentId===id));
+}
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid(submissions);
+}
+
+function saveNote(id, val) { notes[id] = val; }
+
+function setGrade(id, g) {
+  grades[id] = g;
+  const s = submissions.find(x=>x.studentId===id);
+  if (s) renderDetail(s);
+}
+
+startLiveUpdates();
+
+// Expose functions to global scope so inline onclick handlers work
+window.setFilter = setFilter;
+window.selectStudent = selectStudent;
+window.saveNote = saveNote;
+window.setGrade = setGrade;
+window.clearAllData = clearAllData;
+</script>
+</body>
+</html>
